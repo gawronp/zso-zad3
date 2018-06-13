@@ -24,3 +24,5 @@ funkcjonalność wykonywania kodu w kontekście procesu śledzonego.
 
 Notka: dodałem kilka linijek do pliku ptrace_remote.h, aby nie tworzyć
 niepotrzebnie kolejnego pliku nagłówkowego.
+
+Patch wygenrowany został za pomocą git format-patch.
