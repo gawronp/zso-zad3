@@ -11,7 +11,7 @@ procesu śledzonego jest sprawdzany na obecność niezerowego wskaźnika na stru
 ptrace_remote_task. Gdy ten wskaźnik jest obecny, proces śledzony wykonuje
 funkcję wskazywaną poprzez pole struktury ptrace_remote_task, korzystając
 z danych zawartych w strukturze, po czym budzi proces śledzący, który oczekuje na
-zakończenie pracy na zmiennej typu struct completion. Proces śledzony następnie,
+zakończenie pracy na zmiennej typu struct completion. Proces śledzony następnie
 ustawia swój stan tak jak sprzed obudzenia do wykonania pracy i zleca reschedule.
 Ten proces może być powtarzany wielokrotnie. Proces śledzący po obudzeniu
 z czekania na struct completion i odczytaniu danych umieszczonych przez proces
