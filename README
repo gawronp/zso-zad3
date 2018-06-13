@@ -20,4 +20,7 @@ zerowy w task_strukcie procesu śledzonego (child).
 
 W ten sposób, małym nakładem dodatkowego kodu (szczególnie małym w kontekście
 rozszerzania instniejących plików kernela) jestem w stanie uzyskać
-funkcjonalność wykonywnaia kodu w kontekście procesu śledzonego.
+funkcjonalność wykonywania kodu w kontekście procesu śledzonego.
+
+Notka: dodałem kilka linijek do pliku ptrace_remote.h, aby nie tworzyć
+niepotrzebnie kolejnego pliku nagłówkowego.
