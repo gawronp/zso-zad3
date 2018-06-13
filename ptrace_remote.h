@@ -80,7 +80,8 @@ struct ptrace_remote_task {
     long child_orig_state;
 };
 
-int ptrace_request_remote(struct task_struct *child, long request, unsigned long addr, unsigned long data);
+extern int ptrace_request_remote(struct task_struct *child, long request,
+			unsigned long addr, unsigned long data);
 #endif
 
 #endif

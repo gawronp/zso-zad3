@@ -1,0 +1,23 @@
+Piotr Gawryluk, 346895
+Trzecie zadanie zaliczeniowe z ZSO, 2017/2018
+--------------------------------------------------------------------------------
+
+Rozwiązanie wykorzystuje fakt, że jest jedna ścieżka wykonania procesu śledzonego
+przez ptrace, na której proces jest zatrzymywany i zlecany jest rescheduling
+(w signal.h). W rozwiązainu rozszerzam task_struct o dodatkowe pole - wskaźnik na
+struct ptrace_remote_task. Po obudzeniu procesu śledzonego, gdy kontunuuje on
+swoje wykonanie od miejsca uśpienia i zlecenia reschedule w signal.h, task_struct
+procesu śledzonego jest sprawdzany na obecność niezerowego wskaźnika na strukturę
+ptrace_remote_task. Gdy ten wskaźnik jest obecny, proces śledzony wykonuje
+funkcję wskazywaną poprzez pole struktury ptrace_remote_task, korzystając
+z danych zawartych w strukturze, po czym budzi proces śledzący, który oczekuje na
+zakończenie pracy na zmiennej typu struct completion. Proces śledzony następnie,
+ustawia swój stan tak jak sprzed obudzenia do wykonania pracy i zleca reschedule.
+Ten proces może być powtarzany wielokrotnie. Proces śledzący po obudzeniu
+z czekania na struct completion i odczytaniu danych umieszczonych przez proces
+śledzony w strukturze ptrace_remote_task, zwalnia jej pamięć i ustawia wskaźnik
+zerowy w task_strukcie procesu śledzonego (child).
+
+W ten sposób, małym nakładem dodatkowego kodu (szczególnie małym w kontekście
+rozszerzania instniejących plików kernela) jestem w stanie uzyskać
+funkcjonalność wykonywnaia kodu w kontekście procesu śledzonego.

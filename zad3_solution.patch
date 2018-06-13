@@ -1,24 +1,25 @@
-From 592e756329b2cfbeaed43909417e07f7faa1fb59 Mon Sep 17 00:00:00 2001
+From ff3ca12a5652db2f168c050614531f9c73741615 Mon Sep 17 00:00:00 2001
 From: Piotr Gawryluk <pgawryluk0@gmail.com>
-Date: Wed, 13 Jun 2018 19:13:31 +0200
+Date: Thu, 14 Jun 2018 00:51:13 +0200
 Subject: [PATCH] ZSO, Zadanie zaliczeniowe 3, Piotr Gawryluk, 346895
 
 ---
- include/linux/ptrace_remote.h |  86 +++++++++
+ include/linux/ptrace_remote.h |  87 +++++++++
  include/linux/sched.h         |   4 +
+ kernel/Makefile               |   2 +-
  kernel/ptrace.c               |  12 ++
- kernel/ptrace_remote.c        | 409 ++++++++++++++++++++++++++++++++++++++++++
+ kernel/ptrace_remote.c        | 417 ++++++++++++++++++++++++++++++++++++++++++
  kernel/signal.c               |   4 +
- 5 files changed, 515 insertions(+)
+ 6 files changed, 525 insertions(+), 1 deletion(-)
  create mode 100644 include/linux/ptrace_remote.h
  create mode 100644 kernel/ptrace_remote.c
 
 diff --git a/include/linux/ptrace_remote.h b/include/linux/ptrace_remote.h
 new file mode 100644
-index 0000000..fab4547
+index 0000000..23440c0
 --- /dev/null
 +++ b/include/linux/ptrace_remote.h
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,87 @@
 +#ifndef PTRACE_REMOTE_H
 +#define PTRACE_REMOTE_H
 +
@@ -101,12 +102,13 @@ index 0000000..fab4547
 +    long child_orig_state;
 +};
 +
-+int ptrace_request_remote(struct task_struct *child, long request, unsigned long addr, unsigned long data);
++extern int ptrace_request_remote(struct task_struct *child, long request,
++			unsigned long addr, unsigned long data);
 +#endif
 +
 +#endif
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 75d9a57..8fd9cb7 100644
+index 75d9a57..3ca4919 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
 @@ -61,6 +61,7 @@ struct sched_param {
@@ -121,14 +123,27 @@ index 75d9a57..8fd9cb7 100644
  	/* A live task holds one reference. */
  	atomic_t stack_refcount;
  #endif
-+    /* Field required for ptrace defering work to tracee: */
-+   	struct ptrace_remote_task *ptrace_defered_task;
++	/* Field required for ptrace defering work to tracee: */
++	struct ptrace_remote_task *ptrace_defered_task;
 +
  /* CPU-specific state of this task */
  	struct thread_struct thread;
  /*
+diff --git a/kernel/Makefile b/kernel/Makefile
+index eb26e12c..72818d2 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -9,7 +9,7 @@ obj-y     = fork.o exec_domain.o panic.o \
+ 	    extable.o params.o \
+ 	    kthread.o sys_ni.o nsproxy.o \
+ 	    notifier.o ksysfs.o cred.o reboot.o \
+-	    async.o range.o smpboot.o ucount.o
++	    async.o range.o smpboot.o ucount.o ptrace_remote.o
+ 
+ obj-$(CONFIG_MULTIUSER) += groups.o
+ 
 diff --git a/kernel/ptrace.c b/kernel/ptrace.c
-index 49ba7c1..cf469b8 100644
+index 49ba7c1..c496ace 100644
 --- a/kernel/ptrace.c
 +++ b/kernel/ptrace.c
 @@ -26,6 +26,7 @@
@@ -143,26 +158,26 @@ index 49ba7c1..cf469b8 100644
  		ret = seccomp_get_filter(child, addr, datavp);
  		break;
  
-+    case PTRACE_REMOTE_MMAP:
-+    case PTRACE_REMOTE_MUNMAP:
-+    case PTRACE_REMOTE_MREMAP:
-+    case PTRACE_REMOTE_MPROTECT:
-+    case PTRACE_DUP_TO_REMOTE:
-+    case PTRACE_DUP2_TO_REMOTE:
-+    case PTRACE_DUP_FROM_REMOTE:
-+    case PTRACE_REMOTE_CLOSE:
-+        ret = ptrace_request_remote(child, request, addr, data);
-+        break;
++	case PTRACE_REMOTE_MMAP:
++	case PTRACE_REMOTE_MUNMAP:
++	case PTRACE_REMOTE_MREMAP:
++	case PTRACE_REMOTE_MPROTECT:
++	case PTRACE_DUP_TO_REMOTE:
++	case PTRACE_DUP2_TO_REMOTE:
++	case PTRACE_DUP_FROM_REMOTE:
++	case PTRACE_REMOTE_CLOSE:
++		ret = ptrace_request_remote(child, request, addr, data);
++		break;
 +
  	default:
  		break;
  	}
 diff --git a/kernel/ptrace_remote.c b/kernel/ptrace_remote.c
 new file mode 100644
-index 0000000..2c60df69
+index 0000000..2b38a4c
 --- /dev/null
 +++ b/kernel/ptrace_remote.c
-@@ -0,0 +1,409 @@
+@@ -0,0 +1,417 @@
 +#include <asm/syscalls.h>
 +#include <asm/page.h>
 +#include <asm/mman.h>
@@ -216,7 +231,7 @@ index 0000000..2c60df69
 +		defered_task->retval = remote_close(defered_task);
 +		break;
 +	default:
-+		pr_err("PTRACE REMOTE TASK FUNCTION: This should never happen!\n");
++		BUG_ON("remote_task_function called with unknown request code - this should never happen!\n");
 +	}
 +	set_current_state(defered_task->child_orig_state);
 +	complete(&defered_task->remote_completion);
@@ -280,12 +295,12 @@ index 0000000..2c60df69
 +
 +		wait_for_completion(&child->ptrace_defered_task->remote_completion);
 +
-+		// copy struct back, so used can access modified "addr"
++		// copy struct back, so user can access modified "addr"
 +		if (copy_to_user((void *) data,	child->ptrace_defered_task->data_from_user,
 +				sizeof(struct ptrace_remote_mmap))) {
 +			ret = -EFAULT;
 +			break;
-+	        }
++		}
 +
 +		ret = child->ptrace_defered_task->retval;
 +		break;
@@ -331,6 +346,14 @@ index 0000000..2c60df69
 +		spin_unlock_irq(&child->sighand->siglock);
 +
 +		wait_for_completion(&child->ptrace_defered_task->remote_completion);
++
++		// copy struct back, so user can access modified "new_addr"
++		if (copy_to_user((void *) data,	child->ptrace_defered_task->data_from_user,
++				sizeof(struct ptrace_remote_mremap))) {
++			ret = -EFAULT;
++			break;
++		}
++
 +		ret = child->ptrace_defered_task->retval;
 +		break;
 +
@@ -486,7 +509,7 @@ index 0000000..2c60df69
 +		wait_for_completion(&child->ptrace_defered_task->remote_completion);
 +		ret = child->ptrace_defered_task->retval;
 +		break;
-+	}	
++	}
 +
 +	if (child->ptrace_defered_task->file_ptr)
 +		put_filp(child->ptrace_defered_task->file_ptr);

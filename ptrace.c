@@ -1080,16 +1080,16 @@ int ptrace_request(struct task_struct *child, long request,
 		ret = seccomp_get_filter(child, addr, datavp);
 		break;
 
-    case PTRACE_REMOTE_MMAP:
-    case PTRACE_REMOTE_MUNMAP:
-    case PTRACE_REMOTE_MREMAP:
-    case PTRACE_REMOTE_MPROTECT:
-    case PTRACE_DUP_TO_REMOTE:
-    case PTRACE_DUP2_TO_REMOTE:
-    case PTRACE_DUP_FROM_REMOTE:
-    case PTRACE_REMOTE_CLOSE:
-        ret = ptrace_request_remote(child, request, addr, data);
-        break;
+	case PTRACE_REMOTE_MMAP:
+	case PTRACE_REMOTE_MUNMAP:
+	case PTRACE_REMOTE_MREMAP:
+	case PTRACE_REMOTE_MPROTECT:
+	case PTRACE_DUP_TO_REMOTE:
+	case PTRACE_DUP2_TO_REMOTE:
+	case PTRACE_DUP_FROM_REMOTE:
+	case PTRACE_REMOTE_CLOSE:
+		ret = ptrace_request_remote(child, request, addr, data);
+		break;
 
 	default:
 		break;

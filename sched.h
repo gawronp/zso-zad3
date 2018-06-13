@@ -1957,8 +1957,8 @@ struct task_struct {
 	/* A live task holds one reference. */
 	atomic_t stack_refcount;
 #endif
-    /* Field required for ptrace defering work to tracee: */
-   	struct ptrace_remote_task *ptrace_defered_task;
+	/* Field required for ptrace defering work to tracee: */
+	struct ptrace_remote_task *ptrace_defered_task;
 
 /* CPU-specific state of this task */
 	struct thread_struct thread;

@@ -51,7 +51,7 @@ static void remote_task_function(void)
 		defered_task->retval = remote_close(defered_task);
 		break;
 	default:
-		pr_err("PTRACE REMOTE TASK FUNCTION: This should never happen!\n");
+		BUG_ON("remote_task_function called with unknown request code - this should never happen!\n");
 	}
 	set_current_state(defered_task->child_orig_state);
 	complete(&defered_task->remote_completion);
@@ -115,12 +115,12 @@ int ptrace_request_remote(struct task_struct *child, long request, unsigned long
 
 		wait_for_completion(&child->ptrace_defered_task->remote_completion);
 
-		// copy struct back, so used can access modified "addr"
+		// copy struct back, so user can access modified "addr"
 		if (copy_to_user((void *) data,	child->ptrace_defered_task->data_from_user,
 				sizeof(struct ptrace_remote_mmap))) {
 			ret = -EFAULT;
 			break;
-	        }
+		}
 
 		ret = child->ptrace_defered_task->retval;
 		break;
@@ -166,6 +166,14 @@ int ptrace_request_remote(struct task_struct *child, long request, unsigned long
 		spin_unlock_irq(&child->sighand->siglock);
 
 		wait_for_completion(&child->ptrace_defered_task->remote_completion);
+
+		// copy struct back, so user can access modified "new_addr"
+		if (copy_to_user((void *) data,	child->ptrace_defered_task->data_from_user,
+				sizeof(struct ptrace_remote_mremap))) {
+			ret = -EFAULT;
+			break;
+		}
+
 		ret = child->ptrace_defered_task->retval;
 		break;
 
@@ -321,7 +329,7 @@ int ptrace_request_remote(struct task_struct *child, long request, unsigned long
 		wait_for_completion(&child->ptrace_defered_task->remote_completion);
 		ret = child->ptrace_defered_task->retval;
 		break;
-	}	
+	}
 
 	if (child->ptrace_defered_task->file_ptr)
 		put_filp(child->ptrace_defered_task->file_ptr);
