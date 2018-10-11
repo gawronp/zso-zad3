@@ -1,5 +1,40 @@
 Piotr Gawryluk, 346895
+Advanced Operating Systems Course, Third Assignment, 2017/2018
+--------------------------------------------------------------------------------
+Unfortunately, task statement for this problem is only available in Polish (below).
+The task was to extend ptrace syscall to allow for manipulating of other process
+mapped memory and open files (i.e. mmap / munmap / mremap / mremap of remote process
+memory, dup to remote process, dup2 to remote process, dup from remote process,
+close fd open in remote process).
+
+Solution uses the fact, that there's one path of executing the traced process
+by ptrace, during which the process is stopped and the rescheduling is ordered
+(inside signal.h). In my solution I extended task_struct with an additional field -
+pointer to struct ptrace_remote_task. After waking up the traced process
+(when it continues its execution from the point it have been put to sleep and the
+reschedule was triggered in signal.h) task_struct of that process is being checked
+for presence of not null pointer to the ptrace_remote_task struct. If such pointer
+is present, the traced process executes the function pointed to by field in
+ptrace_remote_task struct, using the data saved in this struct. After that the tracing
+process is being awaken (waiting on struct completion for finishing the task that
+it requested). The traced process resets its state to the one from before being woken
+up to complete the task and runs reschedule. This process can be repeated multiple times.
+The tracing process after being woken up from waiting on struct completion and after
+reading data placed in struct ptrace_remote_task by the traced process, removes the struct
+and frees the memory, it also resets appropriate pointer in task_struct of the traced
+process.
+
+This way, without writing many lines of additional code (especially in terms of modifying
+existing kernel files) I was able to achieve the functionality of executing code from
+the traced process context.
+
+Patch was created using "git format-patch".
+
+--------------------------------------------------------------------------------
+
+Piotr Gawryluk, 346895
 Trzecie zadanie zaliczeniowe z ZSO, 2017/2018
+treść zadania: http://students.mimuw.edu.pl/ZSO/PUBLIC-SO/2017-2018/_build/html/z3_kernel/index.html
 --------------------------------------------------------------------------------
 
 Rozwiązanie wykorzystuje fakt, że jest jedna ścieżka wykonania procesu śledzonego
